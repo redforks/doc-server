@@ -61,7 +61,7 @@ fn update_doc_on_cargo_chanes() -> impl Future<Output = ()> {
             WatchMask::CREATE | WatchMask::DELETE | WatchMask::MODIFY,
         )
         .expect("Add watch directory failed");
-    let buffer = [0; 1024];
+    let buffer = [0; 64];
     let stream = inotify
         .into_event_stream(buffer)
         .expect("Failed to open change stream");
