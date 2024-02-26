@@ -1,23 +1,24 @@
 use axum::Router;
-use std::{
-    io::{self, Write},
-    process::Command,
-};
+use tokio::process::Command;
 use tower_http::{services::ServeDir, trace::TraceLayer};
-use tracing::error;
+use tracing::{error, info};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-fn update_doc() {
+async fn update_doc() {
     match Command::new("cargo")
         .args(["doc", "--workspace", "--keep-going"])
-        .output()
+        .spawn()
     {
         Err(e) => {
-            error!("Error execute cargo: {}", e);
+            error!("Error start cargo: {}", e);
         }
-        Ok(output) => {
-            io::stdout().write_all(&output.stdout).unwrap();
-            io::stderr().write_all(&output.stderr).unwrap();
+        Ok(mut child) => {
+            match child.wait().await {
+                Ok(exit_status) => info!("cargo doc exit with status: {exit_status}"),
+                Err(e) => {
+                    error!("Error execute cargo: {}", e)
+                }
+            };
         }
     }
 }
@@ -30,7 +31,7 @@ async fn main() {
         .with(EnvFilter::from_default_env())
         .init();
 
-    update_doc();
+    update_doc().await;
 
     let app = Router::new()
         .nest_service("/", ServeDir::new("target/doc"))
