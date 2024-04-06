@@ -1,4 +1,5 @@
 use axum::Router;
+use clap::{arg, command, Parser};
 use futures_util::stream::StreamExt;
 use inotify::{Inotify, WatchMask};
 use std::{future::Future, path::Path, time::Duration};
@@ -26,8 +27,16 @@ async fn update_doc() {
     }
 }
 
+#[derive(clap::Parser)]
+struct Cli {
+    #[arg(short, long, default_value = "8080")]
+    port: u16,
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
+    let cli = Cli::parse();
+
     // tracing_subscriber by default captures log crate emitted messages
     tracing_subscriber::registry()
         .with(fmt::layer())
@@ -48,7 +57,9 @@ async fn main() {
         .layer(TraceLayer::new_for_http());
 
     // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", cli.port))
+        .await
+        .unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
