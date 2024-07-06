@@ -1,5 +1,5 @@
 use axum::Router;
-use clap::{arg, command, Parser};
+use clap::{arg, Parser};
 use futures_util::stream::StreamExt;
 use inotify::{Inotify, WatchMask};
 use std::{future::Future, path::Path, time::Duration};
@@ -8,11 +8,13 @@ use tower_http::{services::ServeDir, trace::TraceLayer};
 use tracing::{debug, error, info};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
-async fn update_doc() {
-    match Command::new("cargo")
-        .args(["doc", "--workspace", "--keep-going"])
-        .spawn()
-    {
+async fn update_doc(offline: bool) {
+    let mut args = vec!["doc", "--workspace", "--keep-going"];
+    if offline {
+        args.push("--offline");
+    }
+
+    match Command::new("cargo").args(args).spawn() {
         Err(e) => {
             error!("Error start cargo: {}", e);
         }
@@ -31,6 +33,8 @@ async fn update_doc() {
 struct Cli {
     #[arg(short, long, default_value = "8080")]
     port: u16,
+    #[arg(long, default_value = "false")]
+    offline: bool,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -49,7 +53,7 @@ async fn main() {
         return;
     }
 
-    update_doc().await;
+    update_doc(cli.offline).await;
     tokio::spawn(update_doc_on_cargo_chanes());
 
     let app = Router::new()
@@ -78,11 +82,11 @@ fn update_doc_on_cargo_chanes() -> impl Future<Output = ()> {
         .expect("Failed to open change stream");
     let mut stream = debounced::debounced(stream, Duration::from_secs(1));
 
-    return async move {
+    async move {
         loop {
             let event = stream.next().await.unwrap().expect("get event failed");
             debug!("get file changed event: {:?}", event);
-            update_doc().await;
+            update_doc(false).await;
         }
-    };
+    }
 }
