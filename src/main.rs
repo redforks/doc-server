@@ -1,12 +1,12 @@
 use axum::Router;
-use clap::{arg, Parser};
+use clap::{Parser, arg};
 use futures_util::stream::StreamExt;
 use inotify::{Inotify, WatchMask};
 use std::{future::Future, path::Path, time::Duration};
 use tokio::process::Command;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 use tracing::{debug, error, info};
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 async fn update_doc(offline: bool) {
     let mut args = vec!["doc", "--workspace", "--keep-going"];
